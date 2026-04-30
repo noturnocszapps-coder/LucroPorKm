@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "User Profile",
+      "description": "User settings and financial configuration",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "vehicleName": { "type": "string" },
+        "vehicleType": { "type": "string", "enum": ["proprio", "financiado", "alugado"] },
+        "fuelType": { "type": "string", "enum": ["gasolina", "etanol", "flex", "diesel", "gnv"] },
+        "avgConsumption": { "type": "number" },
+        "fuelPrice": { "type": "number" },
+        "fixedCostsMonthly": { "type": "number" },
+        "maintenanceMonthly": { "type": "number" },
+        "onboardingCompleted": { "type": "boolean" },
+        "isPremium": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email"]
+    },
+    "DailyEntry": {
+      "title": "Daily Entry",
+      "description": "Daily earnings and mileage record",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "platform": { "type": "string" },
+        "grossRevenue": { "type": "number" },
+        "totalKm": { "type": "number" },
+        "rideKm": { "type": "number" },
+        "fuelLiters": { "type": "number" },
+        "extraExpenses": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "calculatedMetrics": {
+          "type": "object",
+          "properties": {
+            "fuelCost": { "type": "number" },
+            "fixedCost": { "type": "number" },
+            "maintenanceReserve": { "type": "number" },
+            "netProfit": { "type": "number" },
+            "profitPerKm": { "type": "number" }
+          }
+        }
+      },
+      "required": ["date", "grossRevenue", "totalKm"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "Root user profile document"
+    },
+    "/profiles/{userId}/entries/{entryId}": {
+      "schema": "DailyEntry",
+      "description": "Daily earnings and costs logs for the user"
+    }
+  }
+}
