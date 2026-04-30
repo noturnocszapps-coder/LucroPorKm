@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
 interface AuthContextType {
@@ -17,31 +17,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (uid: string) => {
-    const docRef = doc(db, 'profiles', uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      setProfile(docSnap.data());
+  const fetchProfile = async (uid: string, email: string | null) => {
+    try {
+      console.log(`[AUTH] Fetching profile for: ${uid}`);
+      const docRef = doc(db, 'profiles', uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        console.log('[AUTH] Profile found');
+        setProfile(docSnap.data());
+      } else {
+        console.log('[AUTH] Profile NOT found, creating initial profile...');
+        const newProfile = {
+          uid,
+          email,
+          onboardingCompleted: false,
+          createdAt: new Date().toISOString(),
+          vehicleType: 'proprio'
+        };
+        await setDoc(docRef, newProfile);
+        setProfile(newProfile);
+        console.log('[AUTH] Initial profile created');
+      }
+    } catch (error) {
+      console.error('[AUTH] Error loading profile:', error);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        await fetchProfile(user.uid);
-      } else {
-        setProfile(null);
+    console.log('[AUTH] Initializing auth listener');
+    
+    // Defensive timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.warn('[AUTH] Loading timeout reached (8s). Forcing loading = false');
+        setLoading(false);
       }
-      setLoading(false);
+    }, 8000);
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log(`[AUTH] State changed: ${currentUser ? 'User Logged In (' + currentUser.uid + ')' : 'User Logged Out'}`);
+      setUser(currentUser);
+      
+      try {
+        if (currentUser) {
+          await fetchProfile(currentUser.uid, currentUser.email);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('[AUTH] Critical error in auth state callback:', error);
+      } finally {
+        setLoading(false);
+        clearTimeout(timeoutId);
+        console.log('[AUTH] Loading set to false');
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.uid);
+      await fetchProfile(user.uid, user.email);
     }
   };
 

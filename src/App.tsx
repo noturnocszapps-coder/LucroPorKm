@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -13,18 +14,35 @@ import Settings from './pages/Settings';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, profile } = useAuth();
+  
+  console.log(`[ROUTE] PrivateRoute - User: ${user?.uid}, Loading: ${loading}, Profile: ${!!profile}`);
 
-  if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-emerald-500"></div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-center">
+        <div className="space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-emerald-500 mx-auto"></div>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">Autenticando...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!user) return <Navigate to="/login" />;
+  if (!user) {
+    console.log('[ROUTE] No user found, redirecting to login');
+    return <Navigate to="/login" />;
+  }
   
   // If user exists but onboarding not completed, redirect to onboarding (except if already there)
-  if (profile && !profile.onboardingCompleted && window.location.pathname !== '/onboarding') {
+  if (profile && profile.onboardingCompleted === false && window.location.pathname !== '/onboarding') {
+    console.log('[ROUTE] Onboarding not completed, redirecting...');
     return <Navigate to="/onboarding" />;
+  }
+
+  // If onboarding is completed and user is on /onboarding, move them to dashboard
+  if (profile && profile.onboardingCompleted === true && window.location.pathname === '/onboarding') {
+    console.log('[ROUTE] Onboarding already completed, redirecting to dashboard...');
+    return <Navigate to="/dashboard" />;
   }
 
   return <>{children}</>;
@@ -33,7 +51,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -78,6 +97,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }
